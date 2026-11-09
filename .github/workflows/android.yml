@@ -24,7 +24,10 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: platform-tools
+          packages: |
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -33,6 +36,27 @@ jobs:
 
       - name: Extract project
         run: unzip -q GoaVibesAndroid_Starter.zip -d extracted
+
+      - name: Fix Java Kotlin compatibility
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("extracted/GoaVibesAndroid/app/build.gradle.kts")
+          s = p.read_text()
+          needle = '    buildFeatures { compose = true }'
+          replacement = '''
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+              buildFeatures { compose = true }'''
+          if needle not in s:
+              raise SystemExit("Could not find buildFeatures line")
+          p.write_text(s.replace(needle, replacement, 1))
+          PY
 
       - name: Build APK
         working-directory: extracted/GoaVibesAndroid
